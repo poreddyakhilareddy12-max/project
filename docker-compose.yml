@@ -10,7 +10,7 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=sqlite:///./nerlogix.db
-      - SECRET_KEY=ner-logix-super-secure-production-secret-key-2026-sih
+      - SECRET_KEY=${SECRET_KEY}
     volumes:
       - ./backend/uploads:/app/uploads
       - ./backend/nerlogix.db:/app/nerlogix.db
