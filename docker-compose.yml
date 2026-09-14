@@ -1,0 +1,28 @@
+﻿version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: nerlogix-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./nerlogix.db
+      - SECRET_KEY=ner-logix-super-secure-production-secret-key-2026-sih
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/nerlogix.db:/app/nerlogix.db
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: nerlogix-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
