@@ -1,15 +1,33 @@
 @echo off
-echo ========================================================
-echo Starting NER-LOGIX Logistics Platform
-echo ========================================================
+title ASTRA-SAFE Launcher
+echo =======================================================
+echo          ASTRA-SAFE PLANETARY DEFENSE PLATFORM
+echo =======================================================
+echo.
 
-echo Starting Backend Server on http://localhost:8000 ...
-start "NER-LOGIX Backend" cmd /k "cd backend && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
+cd /d "%~dp0backend"
+echo [1/3] Checking ML model artifacts...
+if not exist "models\asteroid_model.joblib" (
+    echo [*] Training ML model pipeline...
+    python -m ml.train
+) else (
+    echo [OK] Trained ML models found.
+)
 
-timeout /t 3 /nobreak >nul
+echo.
+echo [2/3] Starting FastAPI Backend on http://localhost:8000 ...
+start "ASTRA-SAFE Backend API" cmd /k "python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 
-echo Starting Frontend Server on http://localhost:5173 ...
-start "NER-LOGIX Frontend" cmd /k "cd frontend && npm run dev"
+timeout /t 2 /nobreak >nul
 
-echo Both services launched! Access the Command Center at: http://localhost:5173
-echo API documentation at: http://localhost:8000/docs
+echo.
+echo [3/3] Starting React Vite Frontend on http://localhost:5173 ...
+cd /d "%~dp0frontend"
+start "ASTRA-SAFE Frontend" cmd /k "npm run dev"
+
+echo.
+echo =======================================================
+echo ASTRA-SAFE platform launched!
+echo - Frontend UI: http://localhost:5173
+echo - Backend API Docs: http://localhost:8000/docs
+echo =======================================================

@@ -1,58 +1,63 @@
-﻿import os
-from fastapi import FastAPI
+"""
+ASTRA-SAFE: AI-Based Asteroid Hazard Classification & Monitoring Platform
+FastAPI Application Entry Point
+"""
+
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 
-from app.core.config import settings
-from app.core.database import Base, engine
-from app.api import (
-    auth, health, risk, routes, vehicles, drivers,
-    trips, incidents, alerts, districts, low_bandwidth, analytics
-)
+from app.api.endpoints import router
+from app.services.ml_service import ml_service
+from app.services.asteroid_db import asteroid_db
 
-# Ensure database tables are initialized
-Base.metadata.create_all(bind=engine)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: load model and database into memory
+    print("[ASTRA-SAFE] Initializing ML models and database services...")
+    ml_service.load_artifacts()
+    asteroid_db.load_data()
+    print("[ASTRA-SAFE] Backend initialization complete.")
+    yield
+    print("[ASTRA-SAFE] Shutting down backend services.")
+
 
 app = FastAPI(
-    title=settings.PROJECT_NAME,
-    version=settings.VERSION,
-    description="AI-Based Smart Logistics Accessibility Intelligence Platform for the North Eastern Region of India",
-    docs_url="/docs",
-    redoc_url="/redoc"
+    title="ASTRA-SAFE: AI Asteroid Hazard Intelligence API",
+    description="High-precision machine learning classification and preliminary hazard screening platform for Near-Earth Objects.",
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Production safe default for local/hosted frontends
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Mount static files for uploaded photos
-os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
+# Include API Router
+app.include_router(router)
 
-# Include all API Routers under /api
-app.include_router(health.router, prefix=settings.API_V1_STR)
-app.include_router(auth.router, prefix=settings.API_V1_STR)
-app.include_router(risk.router, prefix=settings.API_V1_STR)
-app.include_router(routes.router, prefix=settings.API_V1_STR)
-app.include_router(vehicles.router, prefix=settings.API_V1_STR)
-app.include_router(drivers.router, prefix=settings.API_V1_STR)
-app.include_router(trips.router, prefix=settings.API_V1_STR)
-app.include_router(incidents.router, prefix=settings.API_V1_STR)
-app.include_router(alerts.router, prefix=settings.API_V1_STR)
-app.include_router(districts.router, prefix=settings.API_V1_STR)
-app.include_router(low_bandwidth.router, prefix=settings.API_V1_STR)
-app.include_router(analytics.router, prefix=settings.API_V1_STR)
+
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError):
+    return JSONResponse(
+        status_code=422,
+        content={"detail": f"Input validation error: {str(exc)}"}
+    )
+
 
 @app.get("/")
-def root():
+async def root():
     return {
-        "platform": "NER-LOGIX",
-        "description": "AI-Based Smart Logistics Accessibility Intelligence Platform for North Eastern Region",
-        "api_docs": "/docs",
-        "states_covered": ["Assam", "Meghalaya", "Nagaland", "Manipur", "Mizoram", "Tripura", "Arunachal Pradesh", "Sikkim"]
+        "platform": "ASTRA-SAFE",
+        "tagline": "AI-Based Asteroid Hazard Classification & Monitoring Platform",
+        "status": "Operational",
+        "docs_url": "/docs",
+        "health_check": "/api/health"
     }

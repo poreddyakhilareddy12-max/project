@@ -1,160 +1,76 @@
-﻿import axios from 'axios';
+import axios from 'axios';
 import {
-  LoginResponse,
-  User,
-  Vehicle,
-  Trip,
-  Incident,
-  Alert,
-  District,
-  RoadSegment,
-  RouteCompareResponse,
-  CargoPriority
-} from '../types';
+  AsteroidPredictionRequest,
+  AsteroidPredictionResponse,
+  AsteroidListResponse,
+  AsteroidSummary,
+  AllMetricsResponse,
+  GlobalFeatureImportanceResponse,
+  HealthCheckResponse,
+  DistributionDataResponse,
+  LiveNASAResponse,
+} from '../types/asteroid';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
-
-export const apiClient = axios.create({
-  baseURL: API_BASE_URL,
+const api = axios.create({
+  baseURL: '/api',
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('ner_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-export const authApi = {
-  login: async (credentials: { username: string; password: string }): Promise<LoginResponse> => {
-    const res = await apiClient.post<LoginResponse>('/auth/login', credentials);
+export const asteroidApi = {
+  getHealth: async (): Promise<HealthCheckResponse> => {
+    const res = await api.get<HealthCheckResponse>('/health');
     return res.data;
   },
-  getMe: async (): Promise<User> => {
-    const res = await apiClient.get<User>('/auth/me');
+
+  getModelInfo: async (): Promise<any> => {
+    const res = await api.get('/model');
+    return res.data;
+  },
+
+  getMetrics: async (): Promise<AllMetricsResponse> => {
+    const res = await api.get<AllMetricsResponse>('/metrics');
+    return res.data;
+  },
+
+  getFeatureImportance: async (): Promise<GlobalFeatureImportanceResponse> => {
+    const res = await api.get<GlobalFeatureImportanceResponse>('/feature-importance');
+    return res.data;
+  },
+
+  getAsteroids: async (params: {
+    search?: string;
+    hazard_filter?: string;
+    sort_by?: string;
+    sort_order?: string;
+    page?: number;
+    page_size?: number;
+  }): Promise<AsteroidListResponse> => {
+    const res = await api.get<AsteroidListResponse>('/asteroids', { params });
+    return res.data;
+  },
+
+  getAsteroidById: async (id: string): Promise<AsteroidSummary> => {
+    const res = await api.get<AsteroidSummary>(`/asteroids/${id}`);
+    return res.data;
+  },
+
+  predictHazard: async (payload: AsteroidPredictionRequest): Promise<AsteroidPredictionResponse> => {
+    const res = await api.post<AsteroidPredictionResponse>('/predict', payload);
+    return res.data;
+  },
+
+  getDistributions: async (): Promise<DistributionDataResponse> => {
+    const res = await api.get<DistributionDataResponse>('/data/distributions');
+    return res.data;
+  },
+
+  getLiveNASAData: async (): Promise<LiveNASAResponse> => {
+    const res = await api.get<LiveNASAResponse>('/nasa/live');
     return res.data;
   },
 };
 
-export const routesApi = {
-  compare: async (payload: {
-    origin_name: string;
-    origin_lat: number;
-    origin_lng: number;
-    destination_name: string;
-    destination_lat: number;
-    destination_lng: number;
-    cargo_priority: CargoPriority;
-    cargo_type?: string;
-  }): Promise<RouteCompareResponse> => {
-    const res = await apiClient.post<RouteCompareResponse>('/routes/compare', payload);
-    return res.data;
-  },
-  getSegments: async (): Promise<RoadSegment[]> => {
-    const res = await apiClient.get<RoadSegment[]>('/routes/segments');
-    return res.data;
-  },
-  getHubs: async (): Promise<{ name: string; coordinates: [number, number] }[]> => {
-    const res = await apiClient.get<{ name: string; coordinates: [number, number] }[]>('/routes/hubs');
-    return res.data;
-  },
-};
-
-export const riskApi = {
-  predict: async (features: Record<string, any>) => {
-    const res = await apiClient.post('/risk/predict', features);
-    return res.data;
-  },
-};
-
-export const vehiclesApi = {
-  getAll: async (): Promise<Vehicle[]> => {
-    const res = await apiClient.get<Vehicle[]>('/vehicles');
-    return res.data;
-  },
-  updateLocation: async (id: number, loc: { latitude: number; longitude: number; speed_kmh?: number }): Promise<Vehicle> => {
-    const res = await apiClient.post<Vehicle>(`/vehicles/${id}/location`, loc);
-    return res.data;
-  },
-};
-
-export const tripsApi = {
-  getAll: async (): Promise<Trip[]> => {
-    const res = await apiClient.get<Trip[]>('/trips');
-    return res.data;
-  },
-  getMyTrip: async (): Promise<Trip | null> => {
-    const res = await apiClient.get<Trip | null>('/drivers/me/trip');
-    return res.data;
-  },
-  reroute: async (id: number, alternateGeometry: string, reasons: string): Promise<Trip> => {
-    const res = await apiClient.post<Trip>(`/trips/${id}/reroute?alternate_geometry=${encodeURIComponent(alternateGeometry)}&delay_reasons=${encodeURIComponent(reasons)}`);
-    return res.data;
-  },
-};
-
-export const incidentsApi = {
-  getAll: async (): Promise<Incident[]> => {
-    const res = await apiClient.get<Incident[]>('/incidents');
-    return res.data;
-  },
-  create: async (payload: any): Promise<Incident> => {
-    const res = await apiClient.post<Incident>('/incidents', payload);
-    return res.data;
-  },
-  uploadPhoto: async (file: File): Promise<{ photo_url: string; filename: string }> => {
-    const formData = new FormData();
-    formData.append('file', file);
-    const res = await apiClient.post<{ photo_url: string; filename: string }>('/incidents/upload-photo', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return res.data;
-  },
-  sync: async (incidents: any[]): Promise<{ synced_count: number; duplicate_count: number; errors: string[] }> => {
-    const res = await apiClient.post('/incidents/sync', { incidents });
-    return res.data;
-  },
-};
-
-export const alertsApi = {
-  getAll: async (): Promise<Alert[]> => {
-    const res = await apiClient.get<Alert[]>('/alerts');
-    return res.data;
-  },
-  acknowledge: async (id: number): Promise<Alert> => {
-    const res = await apiClient.post<Alert>(`/alerts/${id}/acknowledge`);
-    return res.data;
-  },
-  resolve: async (id: number): Promise<Alert> => {
-    const res = await apiClient.post<Alert>(`/alerts/${id}/resolve`);
-    return res.data;
-  },
-};
-
-export const districtsApi = {
-  getAll: async (): Promise<District[]> => {
-    const res = await apiClient.get<District[]>('/districts');
-    return res.data;
-  },
-};
-
-export const lowBandwidthApi = {
-  parseSms: async (rawMessage: string, senderPhone?: string) => {
-    const res = await apiClient.post('/low-bandwidth/parse-sms', {
-      raw_message: rawMessage,
-      sender_phone: senderPhone || '+91-94350-00000',
-    });
-    return res.data;
-  },
-};
-
-export const analyticsApi = {
-  getOverview: async () => {
-    const res = await apiClient.get('/analytics/overview');
-    return res.data;
-  },
-};
+export default asteroidApi;
